@@ -163,11 +163,105 @@
             80% { transform: scale(1.1); opacity: 1; }
             100% { transform: scale(1); }
         }
+
+        /* 加载动画容器 */
+.loader-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #1a1a1a, #303030);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    transition: opacity 0.8s ease;
+    z-index: 1000;
+}
+
+/* 进度圈样式 */
+.progress-ring {
+    width: 120px;
+    height: 120px;
+    position: relative;
+}
+
+/* 进度条动画 */
+.progress-ring__circle {
+    width: 100%;
+    height: 100%;
+    fill: none;
+    stroke: url(#gradient);
+    stroke-width: 8;
+    stroke-linecap: round;
+    transform: rotate(-90deg);
+    transform-origin: 50% 50%;
+    animation: progress 5s linear forwards;
+}
+
+
+
+/* SVG 位置调整 */
+svg {
+    position: absolute;
+}
+
+/* 渐变样式 */
+.gradient {
+    position: absolute;
+}
+
+/* 百分比文字 */
+.percentage {
+    position: absolute;
+    color: #22eae7eb;
+    font-family: 'Arial', sans-serif;
+    font-size: 24px;
+    font-weight: bold;
+    margin-top: 20px;
+}
+
+/* 页面加载动画，防止显示时出现闪烁 */
+body > div:not(.loader-container) {
+    opacity: 0;
+    transition: opacity 0.8s ease;
+    padding: 20px;
+}
+
+body.loaded > div:not(.loader-container) {
+    opacity: 1;
+}
     </style>
 </head>
 <body>
+
+        <!-- 修改加载容器ID -->
+        <div class="loader-container" id="huoshijiazaiprogress">
+            <svg class="gradient">
+                <defs>
+                    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="#00c5e8c5" /> <!-- 深青蓝色 -->
+                        <stop offset="100%" stop-color="#00dbdbdc" /> <!-- 浅青蓝色 -->
+                    </linearGradient>
+                </defs>
+            </svg>
+            <div class="progress-ring">
+                <svg viewBox="0 0 100 100">
+                    <circle class="progress-ring__circle" cx="50" cy="50" r="45" />
+                </svg>
+                <br><br><br><br><br><br>
+                <center>
+                <h3 style="color: #09cdf5e4;"> 火狮 智能助手 </h3>
+                <h3 style="color: #09cdf5e4;"> 游戏 </h3>
+                <h3 style="color: #09cdf5e4;">  井字棋 </h3>
+            </center>
+            </div>
+            <div class="percentage" id="huoshijiazaiprogress-text">0%</div>
+        </div>
+
+
     <div class="game-container">
-        <h1 style="color: #838383eb; text-align: center;"> 火狮智能助手 井字棋</h1>
         <!-- 模式选择 -->
         <div id="mode-select">
             <button class="mode-btn" onclick="startGame('pvp')">双人对战</button>
@@ -176,7 +270,7 @@
         </div>
 
         <!-- 游戏界面 -->
-        <button id="restart" onclick="resetGame()">重新开始</button>
+        <button id="restart" onclick="resetGame()">退出</button>
         <div id="status"></div>
         <div class="mode-info" id="mode-display"></div>
         <div class="board-container" id="board-container"></div>
@@ -365,6 +459,28 @@
             currentPlayer = 'X';
             board = [];
         }
+    </script>
+
+    <script>
+
+let current = 0;
+        const percentageElement = document.getElementById('huoshijiazaiprogress-text');
+        const loader = document.getElementById('huoshijiazaiprogress'); // 修改ID引用
+
+        const progressInterval = setInterval(() => {
+            current += 1;
+            percentageElement.textContent = `${current}%`;
+            if (current >= 100) clearInterval(progressInterval);
+        }, 20);
+
+        setTimeout(() => {
+            loader.style.opacity = '0';
+            document.body.classList.add('loaded'); // 通过body类控制内容显示
+            
+            setTimeout(() => {
+                loader.style.display = 'none';
+            }, 800);
+        }, 2000);
     </script>
 </body>
 </html>
