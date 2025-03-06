@@ -267,6 +267,7 @@ body.loaded > div:not(.loader-container) {
             <button class="mode-btn" onclick="startGame('pvp')">双人对战</button>
             <button class="mode-btn" onclick="startGame('easy')">简单机器人</button>
             <button class="mode-btn" onclick="startGame('hard')">困难机器人</button>
+            <button class="mode-btn" onclick="startGame('impossible')">不可能模式</button>
         </div>
 
         <!-- 游戏界面 -->
@@ -285,8 +286,8 @@ body.loaded > div:not(.loader-container) {
             [0, 3, 6], [1, 4, 7], [2, 5, 8],
             [0, 4, 8], [2, 4, 6]
         ];
-
-        // 开始游戏
+    
+        // ==== 修改1：移除机器人先手设置 ====
         function startGame(mode) {
             gameMode = mode;
             const modeSelect = document.getElementById('mode-select');
@@ -297,29 +298,151 @@ body.loaded > div:not(.loader-container) {
             const boardElement = document.createElement('div');
             boardElement.id = 'board';
             container.appendChild(boardElement);
-
+    
             board = new Array(9).fill('');
             initializeBoard(boardElement);
-
-            // 显示游戏元素
+    
             setTimeout(() => {
                 document.getElementById('restart').classList.add('show');
                 document.getElementById('status').classList.add('show');
                 container.classList.add('show');
             }, 300);
-
-            // 更新模式显示
+    
             const modeText = {
                 'pvp': '双人对战模式',
                 'easy': '对战简单机器人',
-                'hard': '对战困难机器人'
+                'hard': '对战困难机器人',
+                'impossible': '不可能模式'
             };
             document.getElementById('mode-display').textContent = modeText[mode];
-
-            if (mode !== 'pvp' && currentPlayer === 'O') setTimeout(makeBotMove, 500);
         }
-
-        // 初始化棋盘
+    
+        // ==== 修改2：增强AI策略 ====
+        function findBestMove() {
+            // 立即获胜检查
+            for (let i = 0; i < 9; i++) {
+                if (!board[i]) {
+                    board[i] = 'O';
+                    if (checkWinner('O')) {
+                        board[i] = '';
+                        return i;
+                    }
+                    board[i] = '';
+                }
+            }
+    
+            // 阻止玩家获胜检查（优先级提升）
+            for (let i = 0; i < 9; i++) {
+                if (!board[i]) {
+                    board[i] = 'X';
+                    if (checkWinner('X')) {
+                        board[i] = '';
+                        return i;
+                    }
+                    board[i] = '';
+                }
+            }
+    
+            // ==== 新增：后手优化策略 ====
+            if (gameMode === 'impossible') {
+                // 特殊开局应对
+                if (board[4] === 'X' && board.filter(c => c).length === 1) {
+                    const corners = [0, 2, 6, 8].filter(i => !board[i]);
+                    return corners[Math.floor(Math.random() * corners.length)];
+                }
+    
+                let bestScore = -Infinity;
+                let bestMove = -1;
+                
+                for (let i = 0; i < 9; i++) {
+                    if (!board[i]) {
+                        board[i] = 'O';
+                        let score = minimax(board, 0, false);
+                        board[i] = '';
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestMove = i;
+                        }
+                    }
+                }
+                return bestMove;
+            }
+    
+            // 原hard模式逻辑
+            if (!board[4]) return 4;
+            const corners = [0, 2, 6, 8].filter(i => !board[i]);
+            if (corners.length) return corners[Math.floor(Math.random() * corners.length)];
+            const edges = [1, 3, 5, 7].filter(i => !board[i]);
+            return edges.length ? edges[Math.floor(Math.random() * edges.length)] : board.indexOf('');
+        }
+    
+        // ==== 修改3：优化极小化极大算法 ====
+        function minimax(currentBoard, depth, isMaximizing) {
+            if (checkWinner('O')) return 1;
+            if (checkWinner('X')) return -1;
+            if (!currentBoard.includes('')) return 0;
+    
+            // 新增深度权重（加快决策速度）
+            const depthWeight = 0.1 * depth;
+    
+            if (isMaximizing) {
+                let bestScore = -Infinity;
+                for (let i = 0; i < 9; i++) {
+                    if (!currentBoard[i]) {
+                        currentBoard[i] = 'O';
+                        let score = minimax(currentBoard, depth + 1, false) - depthWeight;
+                        currentBoard[i] = '';
+                        bestScore = Math.max(score, bestScore);
+                    }
+                }
+                return bestScore;
+            } else {
+                let bestScore = Infinity;
+                for (let i = 0; i < 9; i++) {
+                    if (!currentBoard[i]) {
+                        currentBoard[i] = 'X';
+                        let score = minimax(currentBoard, depth + 1, true) + depthWeight;
+                        currentBoard[i] = '';
+                        bestScore = Math.min(score, bestScore);
+                    }
+                }
+                return bestScore;
+            }
+        }
+    
+        // ==== 修改4：增强机器人触发逻辑 ====
+        function handleMove(index) {
+            if (board[index] || checkWinner()) return;
+            
+            board[index] = currentPlayer;
+            updateBoard();
+            
+            if (checkWinner()) {
+                endGame(currentPlayer);
+                return;
+            }
+            
+            if (!board.includes('')) {
+                endGame('draw');
+                return;
+            }
+            
+            currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+            updateStatus();
+            
+            // 新增：立即触发机器人响应
+            if (gameMode !== 'pvp' && currentPlayer === 'O') {
+                setTimeout(() => {
+                    makeBotMove();
+                    // 二次检查防止延迟冲突
+                    if (!checkWinner() && board.includes('')) {
+                        updateStatus();
+                    }
+                }, 300);
+            }
+        }
+    
+        // ==== 以下为原有未修改代码 ====
         function initializeBoard(container) {
             for (let i = 0; i < 9; i++) {
                 const cell = document.createElement('button');
@@ -330,8 +453,7 @@ body.loaded > div:not(.loader-container) {
             }
             updateStatus();
         }
-
-        // 处理玩家移动
+    
         function handleMove(index) {
             if (board[index] || checkWinner()) return;
             
@@ -355,11 +477,10 @@ body.loaded > div:not(.loader-container) {
                 setTimeout(makeBotMove, 500);
             }
         }
-
-        // 机器人移动
+    
         function makeBotMove() {
             let index;
-            if (gameMode === 'hard') {
+            if (gameMode === 'hard' || gameMode === 'impossible') { // 新增模式判断
                 index = findBestMove();
             } else {
                 const emptyCells = board.map((cell, idx) => cell === '' ? idx : null).filter(c => c !== null);
@@ -367,55 +488,13 @@ body.loaded > div:not(.loader-container) {
             }
             handleMove(index);
         }
-
-        // AI策略
-        function findBestMove() {
-            // 立即获胜
-            for (let i = 0; i < 9; i++) {
-                if (!board[i]) {
-                    board[i] = 'O';
-                    if (checkWinner('O')) {
-                        board[i] = '';
-                        return i;
-                    }
-                    board[i] = '';
-                }
-            }
-
-            // 阻止玩家获胜
-            for (let i = 0; i < 9; i++) {
-                if (!board[i]) {
-                    board[i] = 'X';
-                    if (checkWinner('X')) {
-                        board[i] = '';
-                        return i;
-                    }
-                    board[i] = '';
-                }
-            }
-
-            // 优先中心
-            if (!board[4]) return 4;
-            
-            // 随机角落
-            const corners = [0, 2, 6, 8].filter(i => !board[i]);
-            if (corners.length) return corners[Math.floor(Math.random() * corners.length)];
-            
-            // 随机边
-            const edges = [1, 3, 5, 7].filter(i => !board[i]);
-            if (edges.length) return edges[Math.floor(Math.random() * edges.length)];
-            
-            return board.indexOf('');
-        }
-
-        // 检查胜利者
+    
         function checkWinner(player = currentPlayer) {
             return winPatterns.some(pattern => 
                 pattern.every(index => board[index] === player)
             );
         }
-
-        // 更新棋盘显示
+    
         function updateBoard() {
             document.querySelectorAll('.cell').forEach((cell, index) => {
                 cell.textContent = board[index];
@@ -423,16 +502,14 @@ body.loaded > div:not(.loader-container) {
                 cell.disabled = !!board[index];
             });
         }
-
-        // 更新状态
+    
         function updateStatus() {
             const status = document.getElementById('status');
             const modePrefix = gameMode === 'pvp' ? '玩家' : '当前';
             status.textContent = `${modePrefix} ${currentPlayer} 的回合`;
             status.style.color = currentPlayer === 'X' ? '#2196F3' : '#FF5722';
         }
-
-        // 结束游戏
+    
         function endGame(result) {
             const status = document.getElementById('status');
             status.textContent = result === 'draw' ? '平局！' : `${result} 获胜！`;
@@ -442,8 +519,7 @@ body.loaded > div:not(.loader-container) {
             document.querySelectorAll('.cell').forEach(cell => cell.disabled = true);
             setTimeout(() => status.style.animation = '', 500);
         }
-
-        // 重置游戏
+    
         function resetGame() {
             const container = document.getElementById('board-container');
             container.classList.remove('show');
